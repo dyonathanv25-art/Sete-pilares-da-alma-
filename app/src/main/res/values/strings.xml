@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Aeldrin</string>
+    <string name="nav_world">Mundo</string>
+    <string name="nav_combat">Combate</string>
+    <string name="nav_grimoire">Grimório</string>
+    <string name="nav_classes">Classes</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "Aeldrin",
+  "description": "Protótipo RPG tático offline de Aeldrin com 5 classes, 30 subclasses (9 secretas), 300 habilidades e batalhas contra chefes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
