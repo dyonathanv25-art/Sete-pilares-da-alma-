@@ -16,280 +16,295 @@ import kotlin.math.sin
 
 object Arena3DMeshes {
 
+    const val ARENA_RADIUS = 5.4f
+
     fun buildEnvironment(regionId: String, time: Float, out: MutableList<Face3D>) {
-        val floorMain: Color
-        val floorLine: Color
+        val tileDark: Color
+        val tileLight: Color
+        val lineColor: Color
         val pillarColor: Color
         val pillarGlow: Color
 
         when (regionId) {
             "kael_dorn" -> {
-                floorMain = Color(0xFF1F191C)
-                floorLine = CrimsonBlood.copy(alpha = 0.45f)
+                tileDark = Color(0xFF1A1418)
+                tileLight = Color(0xFF251B20)
+                lineColor = CrimsonBlood.copy(alpha = 0.42f)
                 pillarColor = Color(0xFF3A353D)
                 pillarGlow = CrimsonBlood
             }
             "mirath" -> {
-                floorMain = Color(0xFF10202C)
-                floorLine = ArcaneCyan.copy(alpha = 0.45f)
+                tileDark = Color(0xFF0E1D29)
+                tileLight = Color(0xFF15293A)
+                lineColor = ArcaneCyan.copy(alpha = 0.42f)
                 pillarColor = Color(0xFF23394D)
                 pillarGlow = ArcaneCyan
             }
             "nyx" -> {
-                floorMain = Color(0xFF151221)
-                floorLine = ParadoxMagenta.copy(alpha = 0.4f)
+                tileDark = Color(0xFF130F1F)
+                tileLight = Color(0xFF1D162E)
+                lineColor = ParadoxMagenta.copy(alpha = 0.38f)
                 pillarColor = Color(0xFF272138)
                 pillarGlow = ParadoxMagenta
             }
             "aethel" -> {
-                floorMain = Color(0xFF122322)
-                floorLine = SoulEmerald.copy(alpha = 0.45f)
+                tileDark = Color(0xFF10201F)
+                tileLight = Color(0xFF182F2C)
+                lineColor = SoulEmerald.copy(alpha = 0.42f)
                 pillarColor = Color(0xFF2A4240)
                 pillarGlow = SoulEmerald
             }
             "solenis" -> {
-                floorMain = Color(0xFF211C17)
-                floorLine = GildedAmber.copy(alpha = 0.45f)
+                tileDark = Color(0xFF1F1A14)
+                tileLight = Color(0xFF2C241B)
+                lineColor = GildedAmber.copy(alpha = 0.42f)
                 pillarColor = Color(0xFF42372B)
                 pillarGlow = GildedAmber
             }
-            else -> { // cicatriz
-                floorMain = Color(0xFF171226)
-                floorLine = AstralViolet.copy(alpha = 0.55f)
+            else -> {
+                tileDark = Color(0xFF151024)
+                tileLight = Color(0xFF1F1733)
+                lineColor = AstralViolet.copy(alpha = 0.48f)
                 pillarColor = Color(0xFF2B2340)
                 pillarGlow = AstralViolet
             }
         }
 
-        // 3D Arena Platform Floor
-        Arena3DMath.addBox(
-            out = out,
-            center = Vec3(0f, -0.18f, 0f),
-            halfSize = Vec3(4.2f, 0.18f, 2.7f),
-            color = floorMain,
-            outline = floorLine
-        )
-        // Perspective Rune Arena Ring
+        // Walkable 3D tiled arena floor (5x5 tiles covering -5.5..+5.5 so walking feels fast & spatial!)
+        val tileSize = 2.2f
+        val halfTile = tileSize * 0.49f
+        for (gx in -2..2) {
+            for (gz in -2..2) {
+                val isAlt = (gx + gz) % 2 == 0
+                Arena3DMath.addQuadXZ(
+                    out = out,
+                    center = Vec3(gx * tileSize, 0f, gz * tileSize),
+                    halfW = halfTile,
+                    halfD = halfTile,
+                    color = if (isAlt) tileDark else tileLight,
+                    emissive = true,
+                    outline = lineColor.copy(alpha = 0.25f)
+                )
+            }
+        }
+
+        // Outer Sacred Boundary Rune Ring
         Arena3DMath.addOrbitRing(
             out = out,
-            center = Vec3(0f, 0.02f, 0f),
-            radius = 2.1f,
-            thickness = 0.05f,
-            segments = 16,
-            color = floorLine,
+            center = Vec3(0f, 0.03f, 0f),
+            radius = ARENA_RADIUS,
+            thickness = 0.08f,
+            segments = 24,
+            color = lineColor,
             rotX = 0f,
-            rotY = time * 0.25f,
-            emissive = true
+            rotY = time * 0.12f
         )
 
-        // Region-specific 3D Landmarks
+        // 360-degree Region Landmarks around the perimeter
         when (regionId) {
             "cicatriz" -> {
-                // 7 Shattered Soul Pillars orbiting in background
                 for (i in 0 until 7) {
-                    val angle = (i * 2f * PI.toFloat() / 7f) + time * 0.12f
-                    val px = cos(angle) * 3.5f
-                    val pz = sin(angle) * 2.2f + 1.2f
-                    val floatY = 0.8f + sin(time * 1.5f + i) * 0.14f
-                    Arena3DMath.addBox(out, Vec3(px, floatY, pz), Vec3(0.16f, 0.72f, 0.16f), pillarColor, rotY = angle, outline = pillarGlow.copy(alpha = 0.5f))
-                    Arena3DMath.addOctahedron(out, Vec3(px, floatY + 0.95f, pz), 0.14f, 0.22f, pillarGlow, rotY = time + i)
+                    val angle = (i * 2f * PI.toFloat() / 7f) + time * 0.08f
+                    val px = cos(angle) * 6.4f
+                    val pz = sin(angle) * 6.4f
+                    val floatY = 1.15f + sin(time * 1.6f + i) * 0.18f
+                    Arena3DMath.addBox(out, Vec3(px, floatY, pz), Vec3(0.24f, 1.05f, 0.24f), pillarColor, rotY = angle, outline = pillarGlow.copy(alpha = 0.55f))
+                    Arena3DMath.addOctahedron(out, Vec3(px, floatY + 1.35f, pz), 0.22f, 0.34f, pillarGlow, rotY = time + i)
                 }
             }
             "mirath" -> {
-                // Rotating Temporal Clockwork Rings
-                Arena3DMath.addOrbitRing(out, Vec3(0f, 1.9f, 1.9f), 1.65f, 0.06f, 18, ArcaneCyan.copy(alpha = 0.55f), rotX = 1.2f, rotY = time * 0.6f)
-                Arena3DMath.addOrbitRing(out, Vec3(0f, 1.9f, 1.9f), 1.15f, 0.05f, 16, GildedAmber.copy(alpha = 0.65f), rotX = -0.9f, rotY = -time * 0.8f)
-                Arena3DMath.addBox(out, Vec3(-3.0f, 1.0f, 1.6f), Vec3(0.24f, 1.0f, 0.24f), pillarColor, outline = ArcaneCyan)
-                Arena3DMath.addBox(out, Vec3(3.0f, 1.0f, 1.6f), Vec3(0.24f, 1.0f, 0.24f), pillarColor, outline = ArcaneCyan)
+                for (i in 0 until 6) {
+                    val angle = i * (2f * PI.toFloat() / 6f)
+                    val px = cos(angle) * 6.2f
+                    val pz = sin(angle) * 6.2f
+                    Arena3DMath.addBox(out, Vec3(px, 1.4f, pz), Vec3(0.28f, 1.4f, 0.28f), pillarColor, rotY = angle, outline = ArcaneCyan)
+                }
+                Arena3DMath.addOrbitRing(out, Vec3(0f, 3.2f, 0f), 3.6f, 0.09f, 20, ArcaneCyan.copy(alpha = 0.45f), rotX = 1.1f, rotY = time * 0.45f)
+                Arena3DMath.addOrbitRing(out, Vec3(0f, 3.2f, 0f), 2.6f, 0.07f, 18, GildedAmber.copy(alpha = 0.5f), rotX = -0.9f, rotY = -time * 0.6f)
             }
             "aethel" -> {
-                // Sky Peaks & Astrolabe Ring
-                Arena3DMath.addPyramid(out, Vec3(-3.1f, 0f, 1.7f), 0.65f, 2.0f, pillarColor, outline = SoulEmerald.copy(alpha = 0.5f))
-                Arena3DMath.addPyramid(out, Vec3(3.1f, 0f, 1.7f), 0.65f, 2.2f, pillarColor, outline = SoulEmerald.copy(alpha = 0.5f))
-                Arena3DMath.addOrbitRing(out, Vec3(0f, 2.3f, 1.5f), 1.3f, 0.04f, 16, GildedAmber.copy(alpha = 0.6f), rotX = 1.1f, rotY = time * 0.5f)
+                for (i in 0 until 6) {
+                    val angle = i * (2f * PI.toFloat() / 6f)
+                    val px = cos(angle) * 6.5f
+                    val pz = sin(angle) * 6.5f
+                    Arena3DMath.addPyramid(out, Vec3(px, 0f, pz), 0.78f, 2.5f, pillarColor, rotY = angle, outline = SoulEmerald.copy(alpha = 0.5f))
+                }
+                Arena3DMath.addOrbitRing(out, Vec3(0f, 3.6f, 0f), 3.0f, 0.06f, 18, GildedAmber.copy(alpha = 0.5f), rotX = 1.25f, rotY = time * 0.4f)
             }
             "solenis" -> {
-                // Split Gold & Shadow Sanctuary Pillars
-                Arena3DMath.addBox(out, Vec3(-2.9f, 1.15f, 1.5f), Vec3(0.25f, 1.15f, 0.25f), GildedAmber.copy(alpha = 0.7f), outline = GildedAmber)
-                Arena3DMath.addBox(out, Vec3(2.9f, 1.15f, 1.5f), Vec3(0.25f, 1.15f, 0.25f), Color(0xFF3E225C), outline = AstralViolet)
-                Arena3DMath.addOrbitRing(out, Vec3(0f, 2.1f, 1.8f), 1.0f, 0.06f, 16, GildedAmber.copy(alpha = 0.55f), rotX = 1.4f, rotY = time * 0.35f)
+                for (i in 0 until 6) {
+                    val angle = i * (2f * PI.toFloat() / 6f)
+                    val px = cos(angle) * 6.2f
+                    val pz = sin(angle) * 6.2f
+                    val isGold = i % 2 == 0
+                    Arena3DMath.addBox(
+                        out,
+                        Vec3(px, 1.4f, pz),
+                        Vec3(0.28f, 1.4f, 0.28f),
+                        if (isGold) GildedAmber.copy(alpha = 0.65f) else Color(0xFF3A2258),
+                        rotY = angle,
+                        outline = if (isGold) GildedAmber else AstralViolet
+                    )
+                }
             }
             else -> {
-                // Kael-Dorn / Nyx Twin Bastions + Glowing Braziers
-                for (side in listOf(-3.1f, 3.1f)) {
-                    Arena3DMath.addBox(out, Vec3(side, 0.95f, 1.5f), Vec3(0.28f, 0.95f, 0.28f), pillarColor, outline = pillarGlow.copy(alpha = 0.5f))
-                    Arena3DMath.addOctahedron(out, Vec3(side, 2.15f + sin(time * 2f) * 0.08f, 1.5f), 0.2f, 0.28f, pillarGlow, rotY = time)
+                // Kael-Dorn / Nyx Perimeter Bastions & Braziers
+                for (i in 0 until 6) {
+                    val angle = i * (2f * PI.toFloat() / 6f)
+                    val px = cos(angle) * 6.2f
+                    val pz = sin(angle) * 6.2f
+                    Arena3DMath.addBox(out, Vec3(px, 1.15f, pz), Vec3(0.32f, 1.15f, 0.32f), pillarColor, rotY = angle, outline = pillarGlow.copy(alpha = 0.5f))
+                    Arena3DMath.addOctahedron(out, Vec3(px, 2.65f + sin(time * 2.2f + i) * 0.08f, pz), 0.22f, 0.3f, pillarGlow, rotY = time + i)
                 }
             }
         }
     }
 
+    /**
+     * Local character model faces +Z, rotated in world space by `facingYaw`.
+     */
     fun buildHero3D(
         heroClass: HeroClass,
         skin: HeroSkin,
+        pos: Vec3,
+        facingYaw: Float,
+        walkPhase: Float,
+        isMoving: Boolean,
+        isDashing: Boolean,
+        attackProgress: Float, // 0 = idle, 0..1 = strike swing
         time: Float,
-        lungeOffset: Float,
         shieldActive: Boolean,
         out: MutableList<Face3D>
     ) {
-        val primary = if (skin == HeroSkin.CLASS_DEFAULT) heroClass.accentColor else skin.primaryColor
-        val secondary = if (skin == HeroSkin.CLASS_DEFAULT) Color(0xFF262B3D) else skin.secondaryColor
-        val glow = if (skin == HeroSkin.CLASS_DEFAULT) heroClass.accentColor else skin.accentGlow
-        val bob = sin(time * 3.2f) * 0.04f
-        val base = Vec3(-1.45f + lungeOffset, bob, -0.15f)
-        val facingYaw = 0.35f
-
-        // Legs
-        Arena3DMath.addBox(out, base + Vec3(-0.14f, 0.3f, 0f), Vec3(0.1f, 0.3f, 0.11f), secondary, rotY = facingYaw)
-        Arena3DMath.addBox(out, base + Vec3(0.14f, 0.3f, 0f), Vec3(0.1f, 0.3f, 0.11f), secondary, rotY = facingYaw)
-
-        // Torso Armor / Robe
-        val torsoW = if (heroClass == HeroClass.GUERREIRO || skin == HeroSkin.KAEL_IRON) 0.34f else 0.28f
-        Arena3DMath.addBox(out, base + Vec3(0f, 0.88f, 0f), Vec3(torsoW, 0.34f, 0.2f), primary, rotY = facingYaw, outline = glow.copy(alpha = 0.5f))
-
-        // Pauldrons
-        Arena3DMath.addBox(out, base + Vec3(-torsoW - 0.07f, 1.08f, 0f), Vec3(0.13f, 0.12f, 0.15f), glow, rotY = facingYaw)
-        Arena3DMath.addBox(out, base + Vec3(torsoW + 0.07f, 1.08f, 0f), Vec3(0.13f, 0.12f, 0.15f), glow, rotY = facingYaw)
-
-        // Cape / Wings by Skin or Class
-        if (skin == HeroSkin.TWILIGHT_HERETIC) {
-            val flap = sin(time * 4f) * 0.25f
-            Arena3DMath.addBox(out, base + Vec3(-0.45f, 1.15f, 0.28f), Vec3(0.4f, 0.22f, 0.04f), GildedAmber, rotY = -0.5f + flap, rotZ = 0.25f, emissive = true)
-            Arena3DMath.addBox(out, base + Vec3(0.15f, 1.15f, 0.34f), Vec3(0.4f, 0.22f, 0.04f), AstralViolet, rotY = 0.5f - flap, rotZ = -0.25f, emissive = true)
-        } else {
-            Arena3DMath.addBox(out, base + Vec3(-0.14f, 0.78f, 0.25f), Vec3(0.25f, 0.45f, 0.04f), secondary, rotY = facingYaw, rotZ = sin(time * 2.5f) * 0.06f)
-        }
-
-        // Head / Helm / Hood
-        Arena3DMath.addBox(out, base + Vec3(0f, 1.42f, 0f), Vec3(0.18f, 0.18f, 0.18f), primary, rotY = facingYaw, outline = glow)
-        // Visor / Eyes Glow
-        Arena3DMath.addBox(out, base + Vec3(0.08f, 1.44f, -0.16f), Vec3(0.11f, 0.04f, 0.03f), glow, rotY = facingYaw, emissive = true)
-
-        // Skin Signature Crown / Halo
-        when (skin) {
-            HeroSkin.ASTRAL_SCRIBER -> {
-                Arena3DMath.addOrbitRing(out, base + Vec3(0f, 1.72f, 0f), 0.34f, 0.03f, 12, GildedAmber, rotX = 0.3f, rotY = time * 1.8f)
-            }
-            HeroSkin.ECLIPSE_PHANTOM -> {
-                Arena3DMath.addOctahedron(out, base + Vec3(-0.42f, 1.35f + sin(time * 3f) * 0.1f, 0f), 0.09f, 0.16f, ArcaneCyan, rotY = time * 2f)
-            }
-            HeroSkin.KAEL_IRON -> {
-                Arena3DMath.addPyramid(out, base + Vec3(-0.14f, 1.6f, 0f), 0.06f, 0.22f, GildedAmber)
-                Arena3DMath.addPyramid(out, base + Vec3(0.14f, 1.6f, 0f), 0.06f, 0.22f, GildedAmber)
-            }
-            else -> Unit
-        }
-
-        // Class Weapon 3D
-        val swingRot = -0.3f + (lungeOffset * 1.1f)
-        when (heroClass) {
-            HeroClass.GUERREIRO -> {
-                // Greatsword
-                Arena3DMath.addBox(out, base + Vec3(0.45f, 1.18f, -0.25f), Vec3(0.07f, 0.62f, 0.04f), Color(0xFFE0E6F2), rotY = facingYaw, rotZ = swingRot, emissive = true, outline = glow)
-                Arena3DMath.addBox(out, base + Vec3(0.38f, 0.85f, -0.22f), Vec3(0.18f, 0.05f, 0.07f), GildedAmber, rotY = facingYaw, rotZ = swingRot)
-            }
-            HeroClass.MAGO -> {
-                // Astral Staff + Floating Crystal
-                Arena3DMath.addBox(out, base + Vec3(0.42f, 0.95f, -0.2f), Vec3(0.04f, 0.72f, 0.04f), GildedAmber, rotY = facingYaw)
-                Arena3DMath.addOctahedron(out, base + Vec3(0.42f, 1.8f + sin(time * 4f) * 0.06f, -0.2f), 0.14f, 0.2f, glow, rotY = time * 2.5f)
-            }
-            HeroClass.LADINO -> {
-                // Twin Curved Daggers
-                Arena3DMath.addBox(out, base + Vec3(0.42f, 0.92f, -0.26f), Vec3(0.05f, 0.34f, 0.03f), glow, rotY = facingYaw, rotZ = -0.6f + swingRot, emissive = true)
-                Arena3DMath.addBox(out, base + Vec3(-0.36f, 0.92f, -0.26f), Vec3(0.05f, 0.34f, 0.03f), glow, rotY = facingYaw, rotZ = 0.6f, emissive = true)
-            }
-            HeroClass.ARQUEIRO -> {
-                // Greatbow
-                Arena3DMath.addBox(out, base + Vec3(0.48f, 1.08f, -0.25f), Vec3(0.05f, 0.56f, 0.06f), GildedAmber, rotY = facingYaw, rotZ = 0.15f)
-                Arena3DMath.addBox(out, base + Vec3(0.56f, 1.08f, -0.32f), Vec3(0.32f, 0.03f, 0.03f), glow, rotY = facingYaw, emissive = true)
-            }
-            HeroClass.CLERIGO -> {
-                // Holy Scepter + Floating Seal
-                Arena3DMath.addBox(out, base + Vec3(0.42f, 0.96f, -0.2f), Vec3(0.05f, 0.52f, 0.05f), GildedAmber, rotY = facingYaw)
-                Arena3DMath.addOctahedron(out, base + Vec3(0.42f, 1.56f, -0.2f), 0.16f, 0.16f, SoulEmerald, rotY = time * 1.8f)
-            }
-        }
-
-        // Active Shield Dome indicator
-        if (shieldActive) {
-            Arena3DMath.addOrbitRing(out, base + Vec3(0f, 0.9f, 0f), 0.68f, 0.05f, 14, ArcaneCyan.copy(alpha = 0.65f), rotX = 0.4f, rotY = -time * 1.5f)
-        }
+        Hero3DSkinBuilder.buildHero3D(
+            heroClass = heroClass,
+            skin = skin,
+            pos = pos,
+            facingYaw = facingYaw,
+            walkPhase = walkPhase,
+            isMoving = isMoving,
+            isDashing = isDashing,
+            attackProgress = attackProgress,
+            time = time,
+            shieldActive = shieldActive,
+            out = out
+        )
     }
 
+    /**
+     * Local enemy model faces +Z, rotated by `facingYaw`, with real-time floor AoE telegraph ring,
+     * dark-charred carapace, pulsing neon corruption fissures, and alpha-blended ragged shadow cloth.
+     */
     fun buildEnemy3D(
         encounter: EnemyEncounter,
-        time: Float,
-        lungeOffset: Float,
+        pos: Vec3,
+        facingYaw: Float,
+        walkPhase: Float,
+        isMoving: Boolean,
         aerialOpen: Boolean,
         isFrozen: Boolean,
+        aoeCenter: Vec3?,
+        aoeRadius: Float,
+        aoeProgress: Float, // 0..1
+        time: Float,
         out: MutableList<Face3D>
     ) {
-        val bob = if (isFrozen) 0f else sin(time * 2.5f) * 0.07f
-        val base = Vec3(1.5f - lungeOffset, bob, 0.15f)
-        val facingYaw = -0.35f
+        val bob = if (isFrozen) 0f else if (isMoving) kotlin.math.abs(sin(walkPhase)) * 0.07f else sin(time * 2.5f) * 0.06f
+        val base = pos + Vec3(0f, bob, 0f)
+        fun place(local: Vec3): Vec3 = local.rotateY(facingYaw) + base
 
+        val pulseAlpha = (0.68f + 0.32f * sin(time * 4.5f)).coerceIn(0f, 1f)
         val (bodyColor, trimColor, coreGlow) = when {
             isFrozen -> Triple(Color(0xFF428EA8), ArcaneCyan, Color.White)
-            encounter.id == "boss_arquiteto" -> Triple(Color(0xFF201638), GildedAmber, AstralViolet)
-            encounter.id.contains("draco") || encounter.id == "boss_sera" -> Triple(Color(0xFF24453E), SoulEmerald, GildedAmber)
-            encounter.id.contains("hidra") -> Triple(Color(0xFF4D2126), CrimsonBlood, Color(0xFFFF8833))
-            encounter.id.contains("nyx") || encounter.id == "boss_zero" || encounter.id.contains("sombra") -> Triple(Color(0xFF1A1926), ParadoxMagenta, CrimsonBlood)
-            encounter.id.contains("relojoeiro") || encounter.id == "boss_lyraen" -> Triple(Color(0xFF20344A), ArcaneCyan, GildedAmber)
-            encounter.isCursed -> Triple(Color(0xFF362140), GildedAmber, ParadoxMagenta)
-            else -> Triple(Color(0xFF484E5E), CrimsonBlood, GildedAmber)
+            encounter.id == "boss_arquiteto" -> Triple(Color(0xFF14111E), GildedAmber, Color(0xFFB84DFF))
+            encounter.id.contains("draco") || encounter.id == "boss_sera" -> Triple(Color(0xFF1E3330), SoulEmerald, GildedAmber)
+            encounter.id.contains("hidra") -> Triple(Color(0xFF36191D), CrimsonBlood, Color(0xFFFF6633))
+            encounter.id.contains("nyx") || encounter.id == "boss_zero" || encounter.id.contains("sombra") -> Triple(Color(0xFF161520), ParadoxMagenta, CrimsonBlood)
+            encounter.id.contains("relojoeiro") || encounter.id == "boss_lyraen" -> Triple(Color(0xFF1A293A), ArcaneCyan, Color(0xFFB84DFF))
+            encounter.isCursed -> Triple(Color(0xFF281833), GildedAmber, ParadoxMagenta)
+            else -> Triple(Color(0xFF2B2832), CrimsonBlood, Color(0xFFB84DFF))
+        }
+        val fissureGlow = coreGlow.copy(alpha = pulseAlpha)
+        val raggedCloth = Color(0xFF1D102A).copy(alpha = 0.72f)
+
+        // Boss Floor Shadow
+        Arena3DMath.addFloorDisk(out, Vec3(pos.x, 0.02f, pos.z), 0.72f, 12, Color(0x77000000), trimColor.copy(alpha = 0.45f))
+
+        // Active Floor AoE Danger Telegraph (Genshin-style red circle!)
+        if (aoeCenter != null && aoeRadius > 0f && aoeProgress > 0f) {
+            Arena3DMath.addOrbitRing(
+                out = out,
+                center = Vec3(aoeCenter.x, 0.04f, aoeCenter.z),
+                radius = aoeRadius,
+                thickness = 0.08f,
+                segments = 20,
+                color = CrimsonBlood,
+                rotX = 0f,
+                rotY = 0f
+            )
+            Arena3DMath.addFloorDisk(
+                out = out,
+                center = Vec3(aoeCenter.x, 0.03f, aoeCenter.z),
+                radius = aoeRadius * aoeProgress.coerceIn(0.05f, 1f),
+                segments = 18,
+                color = CrimsonBlood.copy(alpha = 0.34f),
+                outline = GildedAmber.copy(alpha = 0.7f)
+            )
         }
 
         when {
             encounter.id == "boss_arquiteto" -> {
-                // Cosmic Void Monolith Boss + Orbiting Shards + Shattered Gold Chains
-                Arena3DMath.addOctahedron(out, base + Vec3(0f, 1.35f, 0f), 0.62f, 1.05f, bodyColor, rotY = time * 0.6f, emissive = false, outline = coreGlow)
-                Arena3DMath.addOctahedron(out, base + Vec3(0f, 1.35f, 0f), 0.28f, 0.45f, coreGlow, rotY = -time * 1.5f, emissive = true)
-                Arena3DMath.addOrbitRing(out, base + Vec3(0f, 1.35f, 0f), 1.05f, 0.06f, 18, trimColor, rotX = 0.7f, rotY = time * 0.9f)
-                Arena3DMath.addOrbitRing(out, base + Vec3(0f, 1.35f, 0f), 0.9f, 0.05f, 16, coreGlow, rotX = -0.8f, rotY = -time * 1.1f)
+                Arena3DMath.addOctahedron(out, place(Vec3(0f, 1.45f, 0f)), 0.65f, 1.1f, bodyColor, rotY = time * 0.7f, emissive = false, outline = fissureGlow)
+                Arena3DMath.addOctahedron(out, place(Vec3(0f, 1.45f, 0f)), 0.28f, 0.48f, fissureGlow, rotY = -time * 1.6f, emissive = true)
+                Arena3DMath.addOrbitRing(out, place(Vec3(0f, 1.45f, 0f)), 1.1f, 0.06f, 18, trimColor, rotX = 0.75f, rotY = time * 0.9f)
+                Arena3DMath.addOrbitRing(out, place(Vec3(0f, 1.45f, 0f)), 0.95f, 0.05f, 16, fissureGlow, rotX = -0.8f, rotY = -time * 1.1f)
             }
             encounter.id.contains("draco") || encounter.id == "boss_sera" -> {
-                // Winged Colossus / Storm Dragon
-                val wingFlap = sin(time * 4.5f) * 0.35f
-                val hoverY = 0.45f + sin(time * 3f) * 0.12f
-                Arena3DMath.addBox(out, base + Vec3(0f, 0.95f + hoverY, 0f), Vec3(0.42f, 0.36f, 0.35f), bodyColor, rotY = facingYaw, outline = trimColor)
-                Arena3DMath.addBox(out, base + Vec3(-0.28f, 1.35f + hoverY, -0.35f), Vec3(0.2f, 0.18f, 0.28f), bodyColor, rotY = facingYaw, outline = trimColor)
-                Arena3DMath.addBox(out, base + Vec3(-0.42f, 1.38f + hoverY, -0.58f), Vec3(0.06f, 0.04f, 0.04f), CrimsonBlood, emissive = true)
-                // Giant 3D Wings
-                Arena3DMath.addBox(out, base + Vec3(-0.25f, 1.25f + hoverY, 0.38f), Vec3(0.75f, 0.28f, 0.05f), trimColor, rotY = -0.4f, rotZ = 0.3f + wingFlap, outline = coreGlow)
-                Arena3DMath.addBox(out, base + Vec3(0.55f, 1.25f + hoverY, 0.38f), Vec3(0.75f, 0.28f, 0.05f), trimColor, rotY = 0.4f, rotZ = -0.3f - wingFlap, outline = coreGlow)
+                val wingFlap = sin(time * 4.8f) * 0.35f
+                val hoverY = 0.48f + sin(time * 3f) * 0.12f
+                Arena3DMath.addBox(out, place(Vec3(0f, 0.95f + hoverY, 0f)), Vec3(0.44f, 0.36f, 0.42f), bodyColor, rotY = facingYaw, outline = trimColor)
+                Arena3DMath.addBox(out, place(Vec3(0f, 0.95f + hoverY, 0.41f)), Vec3(0.2f, 0.06f, 0.03f), fissureGlow, rotY = facingYaw, emissive = true)
+                Arena3DMath.addBox(out, place(Vec3(0f, 1.35f + hoverY, 0.46f)), Vec3(0.22f, 0.18f, 0.3f), bodyColor, rotY = facingYaw, outline = trimColor)
+                Arena3DMath.addBox(out, place(Vec3(0f, 1.38f + hoverY, 0.72f)), Vec3(0.12f, 0.05f, 0.04f), CrimsonBlood, rotY = facingYaw, emissive = true)
+                Arena3DMath.addBox(out, place(Vec3(-0.68f, 1.25f + hoverY, -0.1f)), Vec3(0.68f, 0.26f, 0.05f), trimColor.copy(alpha = 0.85f), rotY = facingYaw + 0.3f, rotZ = -0.3f - wingFlap, outline = fissureGlow)
+                Arena3DMath.addBox(out, place(Vec3(0.68f, 1.25f + hoverY, -0.1f)), Vec3(0.68f, 0.26f, 0.05f), trimColor.copy(alpha = 0.85f), rotY = facingYaw - 0.3f, rotZ = 0.3f + wingFlap, outline = fissureGlow)
                 if (aerialOpen) {
-                    // Glowing Aerial Weak Point Crystal!
-                    Arena3DMath.addOctahedron(out, base + Vec3(0f, 1.0f + hoverY, -0.45f), 0.24f, 0.32f, SoulEmerald, rotY = time * 3f)
+                    Arena3DMath.addOctahedron(out, place(Vec3(0f, 0.9f + hoverY, 0.48f)), 0.24f, 0.32f, SoulEmerald, rotY = time * 3.2f)
                 }
             }
             encounter.id.contains("hidra") -> {
-                // 3-Headed Ash Hydra
-                Arena3DMath.addBox(out, base + Vec3(0f, 0.65f, 0.1f), Vec3(0.52f, 0.5f, 0.42f), bodyColor, rotY = facingYaw, outline = trimColor)
+                Arena3DMath.addBox(out, place(Vec3(0f, 0.65f, 0f)), Vec3(0.54f, 0.5f, 0.46f), bodyColor, rotY = facingYaw, outline = trimColor)
+                Arena3DMath.addBox(out, place(Vec3(0f, 0.65f, 0.46f)), Vec3(0.28f, 0.07f, 0.025f), fissureGlow, rotY = facingYaw, rotZ = 0.35f, emissive = true)
                 for (headIdx in -1..1) {
                     val sway = sin(time * 3.5f + headIdx * 1.4f) * 0.15f
-                    val neckCenter = base + Vec3(headIdx * 0.34f + sway, 1.35f, -0.18f)
-                    Arena3DMath.addBox(out, neckCenter, Vec3(0.11f, 0.42f, 0.11f), bodyColor, rotZ = headIdx * 0.25f, outline = trimColor)
-                    Arena3DMath.addPyramid(out, neckCenter + Vec3(0f, 0.4f, -0.12f), 0.16f, 0.26f, coreGlow, rotY = facingYaw, emissive = true)
+                    val neckCenter = place(Vec3(headIdx * 0.36f + sway, 1.35f, 0.24f))
+                    Arena3DMath.addBox(out, neckCenter, Vec3(0.11f, 0.42f, 0.11f), bodyColor, rotY = facingYaw, rotZ = headIdx * 0.22f, outline = trimColor)
+                    Arena3DMath.addPyramid(out, neckCenter + Vec3(0f, 0.4f, 0f), 0.16f, 0.26f, fissureGlow, rotY = facingYaw, emissive = true)
                 }
             }
             else -> {
-                // Humanoid Titan / Chrono-Mage / Shadow Assassin / Twilight Seraph
-                Arena3DMath.addBox(out, base + Vec3(-0.18f, 0.35f, 0f), Vec3(0.12f, 0.35f, 0.12f), bodyColor, rotY = facingYaw)
-                Arena3DMath.addBox(out, base + Vec3(0.18f, 0.35f, 0f), Vec3(0.12f, 0.35f, 0.12f), bodyColor, rotY = facingYaw)
-                Arena3DMath.addBox(out, base + Vec3(0f, 1.0f, 0f), Vec3(0.42f, 0.42f, 0.26f), bodyColor, rotY = facingYaw, outline = trimColor)
-                Arena3DMath.addBox(out, base + Vec3(0f, 1.62f, 0f), Vec3(0.22f, 0.22f, 0.22f), bodyColor, rotY = facingYaw, outline = trimColor)
-                // Glowing Boss Eyes
-                Arena3DMath.addBox(out, base + Vec3(-0.08f, 1.64f, -0.21f), Vec3(0.13f, 0.05f, 0.03f), coreGlow, rotY = facingYaw, emissive = true)
+                val legSwing = if (isMoving) sin(walkPhase) * 0.45f else 0f
+                Arena3DMath.addBox(out, place(Vec3(-0.18f, 0.35f, 0f)), Vec3(0.12f, 0.35f, 0.12f), bodyColor, rotY = facingYaw, rotX = legSwing, outline = fissureGlow.copy(alpha = 0.45f))
+                Arena3DMath.addBox(out, place(Vec3(0.18f, 0.35f, 0f)), Vec3(0.12f, 0.35f, 0.12f), bodyColor, rotY = facingYaw, rotX = -legSwing, outline = fissureGlow.copy(alpha = 0.45f))
+                // Corrupted Armored Torso + Glowing Corruption Fissures
+                Arena3DMath.addBox(out, place(Vec3(0f, 1.0f, 0f)), Vec3(0.42f, 0.42f, 0.26f), bodyColor, rotY = facingYaw, outline = trimColor)
+                Arena3DMath.addBox(out, place(Vec3(0f, 1.02f, 0.265f)), Vec3(0.24f, 0.04f, 0.02f), fissureGlow, rotY = facingYaw, rotZ = 0.55f, emissive = true, neonGlow = true)
+                Arena3DMath.addBox(out, place(Vec3(0f, 0.96f, 0.265f)), Vec3(0.18f, 0.035f, 0.02f), CrimsonBlood.copy(alpha = pulseAlpha), rotY = facingYaw, rotZ = -0.45f, emissive = true, neonGlow = true)
+                // Ragged Alpha-Blended Shadow Cloth Strips
+                Arena3DMath.addBox(out, place(Vec3(-0.22f, 0.65f, -0.26f)), Vec3(0.12f, 0.32f, 0.03f), raggedCloth, rotY = facingYaw, rotX = -0.18f)
+                Arena3DMath.addBox(out, place(Vec3(0.22f, 0.65f, -0.26f)), Vec3(0.12f, 0.32f, 0.03f), raggedCloth, rotY = facingYaw, rotX = -0.22f)
+                // Helmet / Head & Intense Glowing Eyes
+                Arena3DMath.addBox(out, place(Vec3(0f, 1.62f, 0f)), Vec3(0.22f, 0.22f, 0.22f), bodyColor, rotY = facingYaw, outline = trimColor)
+                Arena3DMath.addBox(out, place(Vec3(0f, 1.64f, 0.21f)), Vec3(0.13f, 0.05f, 0.03f), fissureGlow, rotY = facingYaw, emissive = true, neonGlow = true)
 
                 if (encounter.id.contains("relojoeiro") || encounter.id == "boss_lyraen") {
-                    Arena3DMath.addOrbitRing(out, base + Vec3(0f, 1.15f, 0f), 0.78f, 0.05f, 14, ArcaneCyan, rotX = 0.6f, rotY = time * 1.4f)
+                    Arena3DMath.addOrbitRing(out, place(Vec3(0f, 1.15f, 0f)), 0.82f, 0.05f, 14, ArcaneCyan, rotX = 0.6f, rotY = time * 1.4f)
                 } else if (encounter.isCursed) {
                     val flap = sin(time * 3f) * 0.2f
-                    Arena3DMath.addBox(out, base + Vec3(-0.55f, 1.25f, 0.25f), Vec3(0.48f, 0.24f, 0.05f), GildedAmber, rotZ = 0.3f + flap, emissive = true)
-                    Arena3DMath.addBox(out, base + Vec3(0.55f, 1.25f, 0.25f), Vec3(0.48f, 0.24f, 0.05f), ParadoxMagenta, rotZ = -0.3f - flap, emissive = true)
+                    Arena3DMath.addBox(out, place(Vec3(-0.55f, 1.25f, -0.22f)), Vec3(0.48f, 0.24f, 0.05f), GildedAmber.copy(alpha = 0.85f), rotY = facingYaw, rotZ = 0.3f + flap, emissive = true)
+                    Arena3DMath.addBox(out, place(Vec3(0.55f, 1.25f, -0.22f)), Vec3(0.48f, 0.24f, 0.05f), ParadoxMagenta.copy(alpha = 0.85f), rotY = facingYaw, rotZ = -0.3f - flap, emissive = true)
                 } else {
-                    // Boss Weapon
-                    Arena3DMath.addBox(out, base + Vec3(-0.52f, 1.12f, -0.26f), Vec3(0.09f, 0.72f, 0.06f), trimColor, rotY = facingYaw, rotZ = 0.28f, emissive = true)
+                    Arena3DMath.addBox(out, place(Vec3(0.5f, 1.12f, 0.28f)), Vec3(0.09f, 0.72f, 0.06f), trimColor, rotY = facingYaw, rotX = 0.3f, emissive = true)
                 }
             }
         }

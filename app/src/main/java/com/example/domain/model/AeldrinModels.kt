@@ -132,6 +132,38 @@ enum class HeroSkin(
         primaryColor = Color(0xFFE5B85C),
         secondaryColor = Color(0xFF4C2B73),
         accentGlow = SoulEmerald
+    ),
+    PEREGRINO_ARCANE(
+        id = "PEREGRINO_ARCANE",
+        displayName = "Peregrino do Vazio",
+        description = "Túnica chumbo com capuz sombrio, couro gasto, cabelos prateados e runas violeta neon.",
+        primaryColor = Color(0xFF2B2E38),
+        secondaryColor = Color(0xFF171920),
+        accentGlow = Color(0xFFB84DFF)
+    ),
+    CELESTIAL_SWORDSAINT(
+        id = "CELESTIAL_SWORDSAINT",
+        displayName = "Santo da Espada Celeste",
+        description = "Armadura imperial marfim e ouro com coroa solar e 4 espadas espirituais flutuantes.",
+        primaryColor = Color(0xFFE7ECF7),
+        secondaryColor = Color(0xFF293652),
+        accentGlow = GildedAmber
+    ),
+    BLOOD_TYRANT(
+        id = "BLOOD_TYRANT",
+        displayName = "Tirano de Sangue",
+        description = "Placas dracônicas de obsidiana com chifres rubros, ombreiras pontiagudas e núcleo pulsante.",
+        primaryColor = Color(0xFF6B1625),
+        secondaryColor = Color(0xFF150A0F),
+        accentGlow = Color(0xFFFF3852)
+    ),
+    PRIMORDIAL_ARCHMAGE(
+        id = "PRIMORDIAL_ARCHMAGE",
+        displayName = "Arquimago Primordial",
+        description = "Vestes cósmicas reais com diadema de cristal e duas mandalas arcanas contra-rotativas.",
+        primaryColor = Color(0xFF4D2386),
+        secondaryColor = Color(0xFF140B24),
+        accentGlow = ArcaneCyan
     )
 }
 

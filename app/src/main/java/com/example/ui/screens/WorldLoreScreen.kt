@@ -75,6 +75,7 @@ import com.example.ui.viewmodel.AeldrinUiState
 @Composable
 fun WorldLoreScreen(
     uiState: AeldrinUiState,
+    onEnterOpenWorld: () -> Unit,
     onLaunchEncounter: (EnemyEncounter) -> Unit,
     onToggleLightArmor: () -> Unit,
     onToggleLunarEclipse: () -> Unit,
@@ -148,6 +149,23 @@ fun WorldLoreScreen(
                             color = TextSecondary
                         )
                     }
+                }
+            }
+
+            // Enter Open-World 3D CTA
+            item {
+                Button(
+                    onClick = onEnterOpenWorld,
+                    colors = ButtonDefaults.buttonColors(containerColor = SoulEmerald, contentColor = VoidObsidian),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .testTag("enter_open_world_button")
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text("Explorar Mundo Aberto 3D (Zonas, Acampamentos & Vila)", fontWeight = FontWeight.Bold)
                 }
             }
 

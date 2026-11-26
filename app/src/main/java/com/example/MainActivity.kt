@@ -56,6 +56,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.ai.OracleViewModel
 import com.example.ai.configureAppCheck
+import com.example.domain.model.CombatPlayMode
 import com.example.ui.screens.ClassesScreen
 import com.example.ui.screens.CombatArenaScreen
 import com.example.ui.screens.GrimoireScreen
@@ -133,7 +134,7 @@ fun AeldrinApp(
             .fillMaxSize()
             .background(VoidObsidian)
     ) {
-        val useRail = maxWidth >= 700.dp
+        val useRail = maxWidth > maxHeight || maxWidth >= 600.dp
 
         Scaffold(
             containerColor = VoidObsidian,
@@ -208,6 +209,10 @@ fun AeldrinApp(
                         composable(ROUTE_WORLD) {
                             WorldLoreScreen(
                                 uiState = uiState,
+                                onEnterOpenWorld = {
+                                    viewModel.setCombatPlayMode(CombatPlayMode.OPEN_WORLD)
+                                    navigateToTab(ROUTE_COMBAT)
+                                },
                                 onLaunchEncounter = { encounter ->
                                     viewModel.startEncounter(encounter)
                                     navigateToTab(ROUTE_COMBAT)
@@ -220,14 +225,23 @@ fun AeldrinApp(
                         composable(ROUTE_COMBAT) {
                             CombatArenaScreen(
                                 uiState = uiState,
+                                onSelectPlayMode = viewModel::setCombatPlayMode,
                                 onSelectEncounter = viewModel::startEncounter,
                                 onSelectSkin = viewModel::selectHeroSkin,
                                 onBasicAttack = viewModel::performBasicAttack,
-                                onParryStance = viewModel::performParryStance,
+                                onAttackOutOfRange = viewModel::performOutOfRangeSwing,
+                                onBossStrikeResolved = viewModel::resolveRealTimeBossStrike,
                                 onManaOverload = viewModel::triggerManaOverload,
                                 onPurifySoul = viewModel::attemptPurifySoul,
                                 onUseSkill = viewModel::useSkill,
-                                onRetryFight = { viewModel.startEncounter(uiState.combat.encounter) }
+                                onRetryFight = { viewModel.startEncounter(uiState.combat.encounter) },
+                                onOpenWorldPlayerDamaged = viewModel::openWorldPlayerDamaged,
+                                onOpenWorldMonsterDefeated = viewModel::openWorldMonsterDefeated,
+                                onOpenWorldClaimChest = viewModel::openWorldClaimCampChest,
+                                onOpenWorldRestVillage = viewModel::openWorldRestAtVillage,
+                                onOpenWorldUpgradeForge = viewModel::openWorldUpgradeAtForge,
+                                onOpenWorldInvasionResolved = viewModel::openWorldInvasionResolved,
+                                onOpenWorldLog = viewModel::appendOpenWorldLog
                             )
                         }
                         composable(ROUTE_GRIMOIRE) {

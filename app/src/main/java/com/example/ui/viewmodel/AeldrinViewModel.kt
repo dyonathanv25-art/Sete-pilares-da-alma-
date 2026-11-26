@@ -8,6 +8,7 @@ import com.example.data.catalog.SkillCatalog
 import com.example.data.local.AeldrinDatabase
 import com.example.data.local.PlayerSaveEntity
 import com.example.data.repository.GameRepository
+import com.example.domain.model.CombatPlayMode
 import com.example.domain.model.EnemyEncounter
 import com.example.domain.model.HeroClass
 import com.example.domain.model.HeroSkin
@@ -137,6 +138,7 @@ data class AeldrinUiState(
         xpToNextLevel = 120
     ),
     val equippedSkills: List<Skill> = emptyList(),
+    val combatPlayMode: CombatPlayMode = CombatPlayMode.OPEN_WORLD,
     val combat: CombatState = CombatState(),
     val starPuzzle: StarPuzzleState = StarPuzzleState(),
     val stealthTrial: StealthTrialState = StealthTrialState(),
@@ -150,18 +152,21 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
     )
 
     private val combatFlow = MutableStateFlow(CombatState())
+    private val combatModeFlow = MutableStateFlow(CombatPlayMode.OPEN_WORLD)
     private val starPuzzleFlow = MutableStateFlow(StarPuzzleState())
     private val stealthTrialFlow = MutableStateFlow(StealthTrialState())
     private val bannerFlow = MutableStateFlow<String?>(null)
     private var logSequence = 2L
 
+    private val dialogPairFlow = combine(starPuzzleFlow, stealthTrialFlow) { star, stealth -> star to stealth }
+
     val uiState: StateFlow<AeldrinUiState> = combine(
         repository.playerSave,
+        combatModeFlow,
         combatFlow,
-        starPuzzleFlow,
-        stealthTrialFlow,
+        dialogPairFlow,
         bannerFlow
-    ) { saveOrNull, combat, starPuzzle, stealthTrial, banner ->
+    ) { saveOrNull, mode, combat, dialogs, banner ->
         val save = saveOrNull ?: PlayerSaveEntity()
         val stats = computeStats(save)
         val equipped = save.equippedSkillIds().mapNotNull { SkillCatalog.getById(it) }
@@ -169,9 +174,10 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             save = save,
             stats = stats,
             equippedSkills = equipped,
+            combatPlayMode = mode,
             combat = combat,
-            starPuzzle = starPuzzle,
-            stealthTrial = stealthTrial,
+            starPuzzle = dialogs.first,
+            stealthTrial = dialogs.second,
             bannerNotification = banner
         )
     }.stateIn(
@@ -336,7 +342,12 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun setCombatPlayMode(mode: CombatPlayMode) {
+        combatModeFlow.value = mode
+    }
+
     fun startEncounter(encounter: EnemyEncounter) {
+        combatModeFlow.value = CombatPlayMode.BOSS_ARENA
         startEncounterInternal(encounter, uiState.value.stats)
     }
 
@@ -399,8 +410,23 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             parriedThisTurn = false,
             purifyAttempted = false,
             usedSkill = null,
-            actionLogs = logs
+            actionLogs = logs,
+            skipEnemyTurn = true
         )
+    }
+
+    fun performOutOfRangeSwing() {
+        val state = combatFlow.value
+        if (state.outcome != BattleOutcome.ONGOING) return
+        combatFlow.update { cur ->
+            cur.copy(
+                lastAnimEvent = CombatAnimEvent.HERO_SLASH,
+                lastAnimSeq = cur.lastAnimSeq + 1L,
+                lastDamageDealt = 0,
+                lastHealOrShield = 0,
+                logs = (cur.logs + CombatLogEntry(logSequence++, cur.turn, "Alvo fora de alcance! Aproxime-se com o analógico ou use Esquiva.")).takeLast(16)
+            )
+        }
     }
 
     fun performParryStance() {
@@ -452,7 +478,8 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             parriedThisTurn = true,
             purifyAttempted = false,
             usedSkill = null,
-            actionLogs = logs
+            actionLogs = logs,
+            skipEnemyTurn = true
         )
     }
 
@@ -520,7 +547,8 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             parriedThisTurn = false,
             purifyAttempted = true,
             usedSkill = null,
-            actionLogs = logs
+            actionLogs = logs,
+            skipEnemyTurn = true
         )
     }
 
@@ -745,7 +773,8 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             parriedThisTurn = parried,
             purifyAttempted = purify,
             usedSkill = skill,
-            actionLogs = logs
+            actionLogs = logs,
+            skipEnemyTurn = true
         )
     }
 
@@ -757,7 +786,8 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
         parriedThisTurn: Boolean,
         purifyAttempted: Boolean,
         usedSkill: Skill?,
-        actionLogs: List<String>
+        actionLogs: List<String>,
+        skipEnemyTurn: Boolean = false
     ) {
         val stats = uiState.value.stats
         val save = uiState.value.save
@@ -857,33 +887,35 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
-        // Enemy Turn
-        if (freezeTurns > 0) {
-            freezeTurns--
-            logs += CombatLogEntry(logSequence++, currentTurn, "${state.encounter.name} está congelado na Lacuna Temporal!", isHighlight = true)
-        } else {
-            var incoming = state.enemyIntentDamage
-            if (parriedThisTurn) {
-                incoming = if (state.enemyIntent == EnemyIntentType.HEAVY_TELEGRAPHED || state.enemyIntent == EnemyIntentType.AERIAL_DIVE) {
-                    (incoming * 0.15f).roundToInt()
-                } else {
-                    (incoming * 0.45f).roundToInt()
-                }
-            }
-            val mitigated = max(4, incoming - (stats.def / 3))
-
-            if (inversionTurns > 0) {
-                playerHp = min(state.playerMaxHp, playerHp + mitigated)
-                logs += CombatLogEntry(logSequence++, currentTurn, "Inversão Causal converteu $mitigated de dano em CURA!", isHighlight = true)
+        // Enemy Turn (only if not handled asynchronously by real-time 3D Boss AI)
+        if (!skipEnemyTurn) {
+            if (freezeTurns > 0) {
+                freezeTurns--
+                logs += CombatLogEntry(logSequence++, currentTurn, "${state.encounter.name} está congelado na Lacuna Temporal!", isHighlight = true)
             } else {
-                var remainingDmg = mitigated
-                if (playerShield > 0) {
-                    val absorbed = min(playerShield, remainingDmg)
-                    playerShield -= absorbed
-                    remainingDmg -= absorbed
+                var incoming = state.enemyIntentDamage
+                if (parriedThisTurn) {
+                    incoming = if (state.enemyIntent == EnemyIntentType.HEAVY_TELEGRAPHED || state.enemyIntent == EnemyIntentType.AERIAL_DIVE) {
+                        (incoming * 0.15f).roundToInt()
+                    } else {
+                        (incoming * 0.45f).roundToInt()
+                    }
                 }
-                playerHp = max(0, playerHp - remainingDmg)
-                logs += CombatLogEntry(logSequence++, currentTurn, "${state.encounter.name} usou ${state.enemyIntent.label} (-$remainingDmg HP).")
+                val mitigated = max(4, incoming - (stats.def / 3))
+
+                if (inversionTurns > 0) {
+                    playerHp = min(state.playerMaxHp, playerHp + mitigated)
+                    logs += CombatLogEntry(logSequence++, currentTurn, "Inversão Causal converteu $mitigated de dano em CURA!", isHighlight = true)
+                } else {
+                    var remainingDmg = mitigated
+                    if (playerShield > 0) {
+                        val absorbed = min(playerShield, remainingDmg)
+                        playerShield -= absorbed
+                        remainingDmg -= absorbed
+                    }
+                    playerHp = max(0, playerHp - remainingDmg)
+                    logs += CombatLogEntry(logSequence++, currentTurn, "${state.encounter.name} usou ${state.enemyIntent.label} (-$remainingDmg HP).")
+                }
             }
         }
 
@@ -939,6 +971,125 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             lastAnimSeq = animSeq,
             lastDamageDealt = damageDealt,
             lastHealOrShield = healedAmount + shieldGained,
+            logs = logs.takeLast(16)
+        )
+    }
+
+    fun resolveRealTimeBossStrike(
+        playerInDangerZone: Boolean,
+        playerParried: Boolean,
+        playerDodged: Boolean
+    ) {
+        val state = combatFlow.value
+        if (state.outcome != BattleOutcome.ONGOING) return
+        val stats = uiState.value.stats
+        val logs = state.logs.toMutableList()
+        var playerHp = state.playerHp
+        var playerShield = state.playerShield
+        var freezeTurns = state.enemyFreezeTurns
+        var inversionTurns = state.inversionTurns
+        var undoDeath = state.undoDeathActive
+        var below5 = state.wasBelowFivePercentThisFight
+        var enemyHp = state.enemyHp
+        var counterDamage = 0
+
+        if (freezeTurns > 0) {
+            freezeTurns--
+            logs += CombatLogEntry(logSequence++, state.turn, "${state.encounter.name} está congelado na Lacuna Temporal!", isHighlight = true)
+        } else if (playerDodged || !playerInDangerZone) {
+            logs += CombatLogEntry(logSequence++, state.turn, "ESQUIVA! Você saiu da área de impacto de ${state.encounter.name}!", isHighlight = true)
+        } else if (playerParried) {
+            counterDamage = (stats.atk * 1.5f).roundToInt()
+            enemyHp = max(0, enemyHp - counterDamage)
+            logs += CombatLogEntry(logSequence++, state.turn, "PARRY PERFEITO na arena 3D! Contra-ataque de $counterDamage!", isHighlight = true)
+            viewModelScope.launch {
+                var unlockedNow: SubclassInfo? = null
+                repository.updateSave { current ->
+                    val newParries = current.perfectParriesCount + 1
+                    val secrets = current.unlockedSecretIds().toMutableSet()
+                    if (newParries >= 10 && SecretClassId.QUEBRADOR_DE_CEUS.id !in secrets) {
+                        secrets += SecretClassId.QUEBRADOR_DE_CEUS.id
+                        unlockedNow = ClassAndWorldCatalog.subclasses.find { it.id == SecretClassId.QUEBRADOR_DE_CEUS.id }
+                    }
+                    current.copy(
+                        perfectParriesCount = newParries,
+                        unlockedSecretClassIdsCsv = secrets.joinToString(",")
+                    )
+                }
+                unlockedNow?.let { sub ->
+                    combatFlow.update { it.copy(newlyUnlockedSecret = sub) }
+                    bannerFlow.value = "Classe Secreta Desbloqueada: ${sub.name}!"
+                }
+            }
+        } else {
+            val mitigated = max(5, state.enemyIntentDamage - (stats.def / 3))
+            if (inversionTurns > 0) {
+                playerHp = min(state.playerMaxHp, playerHp + mitigated)
+                logs += CombatLogEntry(logSequence++, state.turn, "Inversão Causal converteu $mitigated de dano em CURA!", isHighlight = true)
+            } else {
+                var remainingDmg = mitigated
+                if (playerShield > 0) {
+                    val absorbed = min(playerShield, remainingDmg)
+                    playerShield -= absorbed
+                    remainingDmg -= absorbed
+                }
+                playerHp = max(0, playerHp - remainingDmg)
+                logs += CombatLogEntry(logSequence++, state.turn, "${state.encounter.name} acertou ${state.enemyIntent.label} (-$remainingDmg HP).")
+            }
+        }
+
+        if (playerHp.toFloat() / state.playerMaxHp.toFloat() <= 0.08f) {
+            below5 = true
+        }
+        if (playerHp <= 0 && undoDeath) {
+            undoDeath = false
+            playerHp = (state.playerMaxHp * 0.45f).roundToInt()
+            logs += CombatLogEntry(logSequence++, state.turn, "DESFAZER MORTE ativado! Reviveu com $playerHp HP!", isHighlight = true)
+        }
+        if (playerHp <= 0) {
+            logs += CombatLogEntry(logSequence++, state.turn, "Você tombou na arena 3D... Tente novamente!", isHighlight = true)
+            combatFlow.value = state.copy(
+                playerHp = 0,
+                enemyHp = enemyHp,
+                outcome = BattleOutcome.DEFEAT,
+                logs = logs.takeLast(16)
+            )
+            return
+        }
+        if (enemyHp <= 0) {
+            finalizeBattleVictory(
+                purified = false,
+                finalState = state.copy(
+                    playerHp = playerHp,
+                    enemyHp = 0,
+                    wasBelowFivePercentThisFight = below5,
+                    outcome = BattleOutcome.VICTORY_SLAIN,
+                    logs = logs.takeLast(16)
+                )
+            )
+            return
+        }
+
+        if (inversionTurns > 0) inversionTurns--
+        val nextTurn = state.turn + 1
+        val tickedCooldowns = state.skillCooldowns.mapValues { (_, cd) -> max(0, cd - 1) }.filterValues { it > 0 }
+        val (nextIntent, nextDmg, aerialOpen) = rollNextIntent(state.encounter, nextTurn, freezeTurns)
+
+        combatFlow.value = state.copy(
+            turn = nextTurn,
+            playerHp = playerHp,
+            playerMana = min(state.playerMaxMana, state.playerMana + 6),
+            playerShield = playerShield,
+            enemyHp = enemyHp,
+            enemyFreezeTurns = freezeTurns,
+            enemyAerialWeakPointOpen = aerialOpen,
+            enemyIntent = nextIntent,
+            enemyIntentDamage = nextDmg,
+            skillCooldowns = tickedCooldowns,
+            inversionTurns = inversionTurns,
+            undoDeathActive = undoDeath,
+            wasBelowFivePercentThisFight = below5,
+            lastDamageDealt = counterDamage,
             logs = logs.takeLast(16)
         )
     }
@@ -1146,6 +1297,104 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             val fresh = PlayerSaveEntity()
             startEncounterInternal(ClassAndWorldCatalog.encounters.first(), computeStats(fresh))
             bannerFlow.value = "Progresso reiniciado para o início da jornada."
+        }
+    }
+
+    // --- Open-World Simulation Callbacks ---
+    fun appendOpenWorldLog(message: String, isHighlight: Boolean = false) {
+        combatFlow.update { cur ->
+            cur.copy(
+                logs = (cur.logs + CombatLogEntry(logSequence++, cur.turn, message, isHighlight)).takeLast(16)
+            )
+        }
+    }
+
+    fun openWorldPlayerDamaged(damage: Int, attackerName: String) {
+        val stats = uiState.value.stats
+        val mitigated = max(3, damage - (stats.def / 4))
+        combatFlow.update { cur ->
+            var remaining = mitigated
+            var shield = cur.playerShield
+            if (shield > 0) {
+                val absorbed = min(shield, remaining)
+                shield -= absorbed
+                remaining -= absorbed
+            }
+            val newHp = max(0, cur.playerHp - remaining)
+            cur.copy(
+                playerHp = newHp,
+                playerShield = shield,
+                logs = (cur.logs + CombatLogEntry(logSequence++, cur.turn, "$attackerName acertou você (-$remaining HP).")).takeLast(16)
+            )
+        }
+    }
+
+    fun openWorldMonsterDefeated(name: String, xpReward: Int, shardReward: Int) {
+        grantOpenWorldRewards(xpReward, shardReward, "$name derrotado! (+$xpReward XP · +$shardReward Frag)")
+    }
+
+    fun openWorldClaimCampChest(campName: String, xpReward: Int, shardReward: Int) {
+        grantOpenWorldRewards(xpReward, shardReward, "Baú de $campName aberto! +$xpReward XP · +$shardReward Fragmentos!")
+        bannerFlow.value = "Baú saqueado em $campName (+$xpReward XP, +$shardReward Fragmentos)!"
+    }
+
+    fun openWorldRestAtVillage() {
+        val stats = uiState.value.stats
+        combatFlow.update { cur ->
+            cur.copy(
+                playerHp = stats.maxHp,
+                playerMaxHp = stats.maxHp,
+                playerMana = stats.maxMana,
+                playerMaxMana = stats.maxMana,
+                skillCooldowns = emptyMap(),
+                outcome = BattleOutcome.ONGOING,
+                logs = (cur.logs + CombatLogEntry(logSequence++, cur.turn, "Descanso na Fogueira da Vila: HP e Mana restaurados!", true)).takeLast(16)
+            )
+        }
+        bannerFlow.value = "HP e Mana restaurados na Fogueira da Vila Central!"
+    }
+
+    fun openWorldUpgradeAtForge() {
+        val save = uiState.value.save
+        if (save.shards < 30) {
+            bannerFlow.value = "Precisa de 30 Fragmentos para forjar na Vila (você tem ${save.shards})."
+            return
+        }
+        grantOpenWorldRewards(xpReward = 90, shardReward = -30, logMsg = "Forja da Vila aprimorou seu equipamento! (-30 Frag, +90 XP)")
+        bannerFlow.value = "Equipamento forjado! (+90 XP de maestria)"
+    }
+
+    fun openWorldInvasionResolved(victory: Boolean) {
+        if (victory) {
+            grantOpenWorldRewards(140, 75, "VILA SALVA! Recompensa de defesa: +140 XP · +75 Fragmentos!")
+            bannerFlow.value = "Vila Central defendida! +140 XP e +75 Fragmentos!"
+        } else {
+            appendOpenWorldLog("O Cristal da Vila foi danificado pela horda, mas os guardas reagruparam!", true)
+            bannerFlow.value = "A invasão recuou após danificar o Cristal da Vila."
+        }
+    }
+
+    private fun grantOpenWorldRewards(xpReward: Int, shardReward: Int, logMsg: String) {
+        viewModelScope.launch {
+            var leveledUpTo: Int? = null
+            repository.updateSave { current ->
+                var newXp = current.xp + xpReward
+                var newLevel = current.level
+                while (newXp >= newLevel * 120) {
+                    newXp -= newLevel * 120
+                    newLevel++
+                    leveledUpTo = newLevel
+                }
+                current.copy(
+                    level = newLevel,
+                    xp = newXp,
+                    shards = max(0, current.shards + shardReward)
+                )
+            }
+            appendOpenWorldLog(logMsg, true)
+            leveledUpTo?.let { lvl ->
+                bannerFlow.value = "Nível $lvl alcançado no Mundo Aberto!"
+            }
         }
     }
 }
