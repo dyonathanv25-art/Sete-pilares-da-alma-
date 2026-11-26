@@ -23,7 +23,8 @@ data class PlayerSaveEntity(
     val lightArmorChallengeEnabled: Boolean = false,
     val lunarEclipseModeEnabled: Boolean = false,
     val lunetasAlignedDone: Boolean = false,
-    val nyxStealthDone: Boolean = false
+    val nyxStealthDone: Boolean = false,
+    val activeHeroSkinId: String = "CLASS_DEFAULT"
 ) {
     fun equippedSkillIds(): List<Int> =
         equippedSkillIdsCsv.split(",").mapNotNull { it.trim().toIntOrNull() }.take(5)

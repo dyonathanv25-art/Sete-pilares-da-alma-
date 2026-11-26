@@ -50,6 +50,7 @@ import com.example.R
 import com.example.data.catalog.ClassAndWorldCatalog
 import com.example.domain.model.EnemyEncounter
 import com.example.domain.model.HeroClass
+import com.example.domain.model.HeroSkin
 import com.example.domain.model.SecretClassId
 import com.example.domain.model.SubclassInfo
 import com.example.ui.theme.AstralViolet
@@ -68,6 +69,7 @@ import com.example.ui.viewmodel.AeldrinUiState
 fun ClassesScreen(
     uiState: AeldrinUiState,
     onSelectHeroClass: (HeroClass) -> Unit,
+    onSelectHeroSkin: (HeroSkin) -> Unit,
     onEquipSubclass: (SubclassInfo) -> Unit,
     onStartSecretTrialFight: (EnemyEncounter) -> Unit,
     onOpenStarPuzzle: () -> Unit,
@@ -157,6 +159,33 @@ fun ClassesScreen(
                                 selectedLabelColor = heroClass.accentColor
                             ),
                             modifier = Modifier.testTag("select_class_${heroClass.name}")
+                        )
+                    }
+                }
+            }
+
+            // 3D Character Skin Selector
+            item {
+                Text(
+                    text = "Skins 3D do Personagem",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = AstralViolet
+                )
+                Spacer(Modifier.height(6.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(HeroSkin.entries) { skin ->
+                        val selected = skin == uiState.stats.activeSkin
+                        FilterChip(
+                            selected = selected,
+                            onClick = { onSelectHeroSkin(skin) },
+                            label = {
+                                Text(skin.displayName, style = MaterialTheme.typography.labelSmall)
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = skin.accentGlow.copy(alpha = 0.24f),
+                                selectedLabelColor = skin.accentGlow
+                            ),
+                            modifier = Modifier.testTag("classes_skin_${skin.id}")
                         )
                     }
                 }

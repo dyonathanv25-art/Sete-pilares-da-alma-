@@ -10,6 +10,7 @@ import com.example.data.local.PlayerSaveEntity
 import com.example.data.repository.GameRepository
 import com.example.domain.model.EnemyEncounter
 import com.example.domain.model.HeroClass
+import com.example.domain.model.HeroSkin
 import com.example.domain.model.SecretClassId
 import com.example.domain.model.Skill
 import com.example.domain.model.SkillCategory
@@ -43,9 +44,20 @@ enum class BattleOutcome {
     DEFEAT
 }
 
+enum class CombatAnimEvent {
+    IDLE,
+    HERO_SLASH,
+    HERO_MAGIC,
+    HERO_PARRY,
+    HERO_PURIFY,
+    HERO_PARADOX,
+    HERO_OVERLOAD
+}
+
 data class ComputedHeroStats(
     val heroClass: HeroClass,
     val activeSubclass: SubclassInfo,
+    val activeSkin: HeroSkin,
     val maxHp: Int,
     val maxMana: Int,
     val atk: Int,
@@ -87,6 +99,10 @@ data class CombatState(
     val spellCastCount: Int = 0,
     val outcome: BattleOutcome = BattleOutcome.ONGOING,
     val newlyUnlockedSecret: SubclassInfo? = null,
+    val lastAnimEvent: CombatAnimEvent = CombatAnimEvent.IDLE,
+    val lastAnimSeq: Long = 0L,
+    val lastDamageDealt: Int = 0,
+    val lastHealOrShield: Int = 0,
     val logs: List<CombatLogEntry> = listOf(
         CombatLogEntry(1L, 1, "Sentinela Kael-7 bloqueia os portões de Kael-Dorn. Prepare sua postura!", true)
     )
@@ -112,6 +128,7 @@ data class AeldrinUiState(
     val stats: ComputedHeroStats = ComputedHeroStats(
         heroClass = HeroClass.GUERREIRO,
         activeSubclass = ClassAndWorldCatalog.subclasses.first(),
+        activeSkin = HeroSkin.CLASS_DEFAULT,
         maxHp = 420,
         maxMana = 100,
         atk = 40,
@@ -197,9 +214,12 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             crit += 15
         }
 
+        val activeSkin = HeroSkin.entries.find { it.id == save.activeHeroSkinId } ?: HeroSkin.CLASS_DEFAULT
+
         return ComputedHeroStats(
             heroClass = heroClass,
             activeSubclass = subclass,
+            activeSkin = activeSkin,
             maxHp = rawHp,
             maxMana = rawMana,
             atk = atk,
@@ -207,6 +227,13 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             critPercent = crit.coerceAtMost(85),
             xpToNextLevel = save.level * 120
         )
+    }
+
+    fun selectHeroSkin(skin: HeroSkin) {
+        viewModelScope.launch {
+            repository.updateSave { it.copy(activeHeroSkinId = skin.id) }
+            bannerFlow.value = "Skin 3D equipada: ${skin.displayName}"
+        }
     }
 
     fun selectHeroClass(heroClass: HeroClass) {
@@ -746,6 +773,15 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
         var undoDeath = state.undoDeathActive
         var below5 = state.wasBelowFivePercentThisFight || (playerHp.toFloat() / state.playerMaxHp.toFloat() <= 0.08f)
 
+        val animEvent = when {
+            purifyAttempted -> CombatAnimEvent.HERO_PURIFY
+            parriedThisTurn -> CombatAnimEvent.HERO_PARRY
+            usedSkill?.category == SkillCategory.PARADOXAL -> CombatAnimEvent.HERO_PARADOX
+            usedSkill != null -> CombatAnimEvent.HERO_MAGIC
+            else -> CombatAnimEvent.HERO_SLASH
+        }
+        val animSeq = state.lastAnimSeq + 1L
+
         actionLogs.forEach { msg ->
             logs += CombatLogEntry(logSequence++, currentTurn, msg, isHighlight = damageDealt >= stats.atk * 2 || purifyAttempted)
         }
@@ -899,6 +935,10 @@ class AeldrinViewModel(application: Application) : AndroidViewModel(application)
             inversionTurns = inversionTurns,
             undoDeathActive = undoDeath,
             wasBelowFivePercentThisFight = below5,
+            lastAnimEvent = animEvent,
+            lastAnimSeq = animSeq,
+            lastDamageDealt = damageDealt,
+            lastHealOrShield = healedAmount + shieldGained,
             logs = logs.takeLast(16)
         )
     }

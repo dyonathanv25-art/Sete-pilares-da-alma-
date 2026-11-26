@@ -58,7 +58,9 @@ import com.example.R
 import com.example.data.catalog.ClassAndWorldCatalog
 import com.example.domain.model.EnemyEncounter
 import com.example.domain.model.EnemyTier
+import com.example.domain.model.HeroSkin
 import com.example.domain.model.Skill
+import com.example.ui.combat3d.CombatArena3DView
 import com.example.ui.theme.ArcaneCyan
 import com.example.ui.theme.AstralViolet
 import com.example.ui.theme.CardBorder
@@ -79,6 +81,7 @@ import com.example.ui.viewmodel.EnemyIntentType
 fun CombatArenaScreen(
     uiState: AeldrinUiState,
     onSelectEncounter: (EnemyEncounter) -> Unit,
+    onSelectSkin: (HeroSkin) -> Unit,
     onBasicAttack: () -> Unit,
     onParryStance: () -> Unit,
     onManaOverload: () -> Unit,
@@ -122,6 +125,14 @@ fun CombatArenaScreen(
                         )
                     }
                 }
+            }
+
+            // Interactive 3D Combat Viewport (Hero Skin + Enemy 3D + Region Ambientação)
+            item {
+                CombatArena3DView(
+                    uiState = uiState,
+                    onSelectSkin = onSelectSkin
+                )
             }
 
             // Boss Card

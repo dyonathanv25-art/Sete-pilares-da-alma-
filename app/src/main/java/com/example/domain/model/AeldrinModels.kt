@@ -77,6 +77,64 @@ enum class HeroClass(
     )
 }
 
+enum class HeroSkin(
+    val id: String,
+    val displayName: String,
+    val description: String,
+    val primaryColor: Color,
+    val secondaryColor: Color,
+    val accentGlow: Color
+) {
+    CLASS_DEFAULT(
+        id = "CLASS_DEFAULT",
+        displayName = "Armadura da Classe",
+        description = "Visual clássico adaptado à sua classe e arma principal.",
+        primaryColor = Color(0xFF4A5578),
+        secondaryColor = Color(0xFF23283B),
+        accentGlow = GildedAmber
+    ),
+    KAEL_IRON(
+        id = "KAEL_IRON",
+        displayName = "Guarda de Ferro",
+        description = "Placas pesadas de Kael-Dorn com manto carmesim.",
+        primaryColor = Color(0xFF8C96A8),
+        secondaryColor = Color(0xFF3E1E26),
+        accentGlow = CrimsonBlood
+    ),
+    ASTRAL_SCRIBER(
+        id = "ASTRAL_SCRIBER",
+        displayName = "Manto Astral",
+        description = "Vestes estelares de Mirath com auréola orbital dourada.",
+        primaryColor = Color(0xFF3A2D6E),
+        secondaryColor = Color(0xFF191438),
+        accentGlow = AstralViolet
+    ),
+    NYX_FACELESS(
+        id = "NYX_FACELESS",
+        displayName = "Sem-Rosto de Nyx",
+        description = "Capuz sombrio da Guilda dos Nomes Apagados.",
+        primaryColor = Color(0xFF1F2233),
+        secondaryColor = Color(0xFF11121C),
+        accentGlow = ParadoxMagenta
+    ),
+    ECLIPSE_PHANTOM(
+        id = "ECLIPSE_PHANTOM",
+        displayName = "Espectro Lunar",
+        description = "Silhueta espectral prateada do Santuário Submerso.",
+        primaryColor = Color(0xFF60B8D4),
+        secondaryColor = Color(0xFF1B3547),
+        accentGlow = ArcaneCyan
+    ),
+    TWILIGHT_HERETIC(
+        id = "TWILIGHT_HERETIC",
+        displayName = "Crepúsculo Herege",
+        description = "Asas duplas de Solenis fundindo luz dourada e vazio.",
+        primaryColor = Color(0xFFE5B85C),
+        secondaryColor = Color(0xFF4C2B73),
+        accentGlow = SoulEmerald
+    )
+}
+
 enum class SecretClassId(val id: String) {
     TIRANO_DE_SANGUE("secret_tirano_sangue"),
     QUEBRADOR_DE_CEUS("secret_quebrador_ceus"),

@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,11 +16,13 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoStories
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SportsKabaddi
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Security
@@ -53,10 +54,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.ai.OracleViewModel
+import com.example.ai.configureAppCheck
 import com.example.ui.screens.ClassesScreen
 import com.example.ui.screens.CombatArenaScreen
 import com.example.ui.screens.GrimoireScreen
 import com.example.ui.screens.NyxStealthTrialDialog
+import com.example.ui.screens.OracleScreen
 import com.example.ui.screens.StarAlignmentDialog
 import com.example.ui.screens.WorldLoreScreen
 import com.example.ui.theme.AeldrinTheme
@@ -71,6 +75,7 @@ const val ROUTE_WORLD = "world"
 const val ROUTE_COMBAT = "combat"
 const val ROUTE_GRIMOIRE = "grimoire"
 const val ROUTE_CLASSES = "classes"
+const val ROUTE_ORACLE = "oracle"
 
 private data class NavTab(
     val route: String,
@@ -83,12 +88,16 @@ private val AELDRIN_TABS = listOf(
     NavTab(ROUTE_WORLD, "Mundo", Icons.Filled.Explore, Icons.Outlined.Explore),
     NavTab(ROUTE_COMBAT, "Combate", Icons.Filled.SportsKabaddi, Icons.Outlined.SportsKabaddi),
     NavTab(ROUTE_GRIMOIRE, "Grimório", Icons.Filled.AutoStories, Icons.Outlined.AutoStories),
-    NavTab(ROUTE_CLASSES, "Classes", Icons.Filled.Security, Icons.Outlined.Security)
+    NavTab(ROUTE_CLASSES, "Classes", Icons.Filled.Security, Icons.Outlined.Security),
+    NavTab(ROUTE_ORACLE, "Oráculo", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome)
 )
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // STEP 1: Configure Firebase App Check with launch intent before any UI or ViewModels
+        configureAppCheck(this, intent)
+
         enableEdgeToEdge()
         setContent {
             AeldrinTheme {
@@ -99,8 +108,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun AeldrinApp(viewModel: AeldrinViewModel = viewModel()) {
+fun AeldrinApp(
+    viewModel: AeldrinViewModel = viewModel(),
+    oracleViewModel: OracleViewModel = viewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val oracleState by oracleViewModel.uiState.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
@@ -139,7 +152,7 @@ fun AeldrinApp(viewModel: AeldrinViewModel = viewModel()) {
                                         contentDescription = tab.label
                                     )
                                 },
-                                label = { Text(tab.label) },
+                                label = { Text(tab.label, maxLines = 1) },
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = VoidObsidian,
                                     selectedTextColor = GildedAmber,
@@ -208,6 +221,7 @@ fun AeldrinApp(viewModel: AeldrinViewModel = viewModel()) {
                             CombatArenaScreen(
                                 uiState = uiState,
                                 onSelectEncounter = viewModel::startEncounter,
+                                onSelectSkin = viewModel::selectHeroSkin,
                                 onBasicAttack = viewModel::performBasicAttack,
                                 onParryStance = viewModel::performParryStance,
                                 onManaOverload = viewModel::triggerManaOverload,
@@ -226,6 +240,7 @@ fun AeldrinApp(viewModel: AeldrinViewModel = viewModel()) {
                             ClassesScreen(
                                 uiState = uiState,
                                 onSelectHeroClass = viewModel::selectHeroClass,
+                                onSelectHeroSkin = viewModel::selectHeroSkin,
                                 onEquipSubclass = viewModel::equipSubclass,
                                 onStartSecretTrialFight = { encounter ->
                                     viewModel.startEncounter(encounter)
@@ -235,9 +250,20 @@ fun AeldrinApp(viewModel: AeldrinViewModel = viewModel()) {
                                 onOpenStealthTrial = viewModel::openStealthTrial
                             )
                         }
+                        composable(ROUTE_ORACLE) {
+                            OracleScreen(
+                                gameState = uiState,
+                                oracleState = oracleState,
+                                onAskStream = { question ->
+                                    oracleViewModel.askOracleStream(question, uiState)
+                                },
+                                onGenerateComboPlan = {
+                                    oracleViewModel.generateStructuredCombo(uiState)
+                                }
+                            )
+                        }
                     }
 
-                    // Top Notification Banner
                     androidx.compose.animation.AnimatedVisibility(
                         visible = uiState.bannerNotification != null,
                         modifier = Modifier
