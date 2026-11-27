@@ -7,14 +7,14 @@ jobs:
 build:
 runs-on: ubuntu-latest
 steps:
-- name: Baixar código
+ - name: Baixar código
 uses: actions/checkout@v4
 name: Configurar Java 17
 uses: actions/setup-java@v4
 with:
-  java-version: '17'
-  distribution: 'temurin'
-- name: Gerar APK
+java-version: '17'
+distribution: 'temurin'
+ - name: Gerar APK
 run: ./gradlew assembleDebug
 name: Guardar APK
 uses: actions/upload-artifact@v4
