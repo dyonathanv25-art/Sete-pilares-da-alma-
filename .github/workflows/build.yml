@@ -19,11 +19,8 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Dar permissão ao Gradle
-        run: chmod +x gradlew
-
       - name: Gerar APK de Debug
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
       - name: Salvar APK para download
         uses: actions/upload-artifact@v4
