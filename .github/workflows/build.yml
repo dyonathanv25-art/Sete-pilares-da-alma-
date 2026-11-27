@@ -30,4 +30,5 @@ jobs:
         with:
           name: Sete-Pilares-APK
           path: app/build/outputs/apk/debug/*.apk
+run: ./gradlew assembleDebug --stacktrace
 
